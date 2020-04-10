@@ -7,9 +7,7 @@ import sys
 import json
 import requests
 from requests import packages
-import datetime
 import time
-
 
 import smtplib
 import os.path as op
@@ -23,7 +21,6 @@ from email import encoders
 
 # Set up classes to interact with CVP API
 # serverCVP exception class
-
 
 class serverCvpError(Exception):
     def __init__(self, value):
@@ -83,29 +80,15 @@ class serverCvp(object):
         getParams = {"startIndex":0, "endIndex":0}
         response = requests.get(self.url+getURL,cookies=self.cookies,params=getParams,verify=False)
         if "errorMessage" in str(response.json()):
-            text = "Error retrieving tasks failed: %s" % response.json()['errorMessage']
+            text = "Error retrieving users failed: %s" % response.json()['errorMessage']
             raise serverCvpError(text)
         users = response.json()["users"]
         return users
- 
 
-def send_mail(send_from, send_to, subject, message, files=[],
-              server="localhost", port=587, username='', password='',
-              use_tls=True):
-    """Compose and send email with provided info and attachments.
+def send_mail(send_from, send_to, subject, message, files,
+              server, port, username, password,
+              use_tls):
 
-    Args:
-        send_from (str): from name
-        send_to (str): to name
-        subject (str): message title
-        message (str): message body
-        files (list[str]): list of file paths to be attached to email
-        server (str): mail server host name
-        port (int): port number
-        username (str): server auth username
-        password (str): server auth password
-        use_tls (bool): use TLS mode
-    """
     msg = MIMEMultipart()
     msg['From'] = send_from
     msg['To'] = COMMASPACE.join(send_to)
@@ -129,7 +112,6 @@ def send_mail(send_from, send_to, subject, message, files=[],
     smtp.login(username, password)
     smtp.sendmail(send_from, send_to, msg.as_string())
     smtp.quit()
-
 
 def main():
     
@@ -160,20 +142,18 @@ def main():
     
     endTime = str(int(currenttime)) + "000"
     startTime = str(int(currenttime)-86400) + "000"
-    i = 0
+
     for user in users:
-        objectKey= users[i]["userId"]
+        objectKey= user["userId"]
         auditLogs = cvpSession.getAuditlogs(startTime, endTime,"User", objectKey)
         filename= "Audit_logs_user_" + objectKey + "_" + d1 + ".csv"
-        f = open(filename,'w')
-        f.write(auditLogs.text)
+        with open(filename,'w') as f:
+            f.write(auditLogs.text)
         files.append(filename)
-        i +=1
 
     print ("Logout from CVP:%s"% cvpSession.logOut()['data'])
-
-    send_from = "senderemail@domain.com"
-    send_to = ["receiveremail@domain.com"]
+    send_from = "sender@domain.com"
+    send_to = ["receiver@domain.com"]
     subject = "User Audit Logs "+d1
     message = ""
     server = "smtp.domain.com"
@@ -181,7 +161,6 @@ def main():
     password = "password"
     port =587
     use_tls = True
-    
     send_mail(send_from, send_to, subject, message, files, server, port, username, password, use_tls )
 
 if __name__ == '__main__':
